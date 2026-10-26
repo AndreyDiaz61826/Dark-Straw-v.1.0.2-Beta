@@ -1,31 +1,32 @@
 
--- BLACKOUT HUB | Mobile Edition
--- Single LocalScript for your own Roblox experience
+-- BLACKOUT HUB | Complete LocalScript
+-- For your own Roblox Studio experience
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local old = PlayerGui:FindFirstChild("BlackoutHub")
-if old then old:Destroy() end
+local oldGui = playerGui:FindFirstChild("BlackoutHub")
+if oldGui then oldGui:Destroy() end
 
-local Settings = {
+local S = {
     Aim = false,
     ESP = false,
-    CFrameSpeed = false,
-    Speed = 35,
+    Speed = false,
+    SpeedValue = 35,
+    Smoothness = 18,
     AimColor = Color3.fromRGB(110, 80, 255),
-    ESPFill = Color3.fromRGB(255, 45, 55),
-    ESPOutline = Color3.fromRGB(255, 255, 255),
-    AimSmoothness = 0.18,
+    FillColor = Color3.fromRGB(255, 45, 55),
+    OutlineColor = Color3.fromRGB(255, 255, 255),
 }
 
-local selectedTab = "Combat"
-local highlights = {}
-local currentTarget = nil
+local espHighlights = {}
+local aimHighlights = {}
+local currentTarget
+local currentTab = "Combat"
 
 local function make(class, props, parent)
     local obj = Instance.new(class)
@@ -36,29 +37,28 @@ local function make(class, props, parent)
     return obj
 end
 
-local function corner(obj, radius)
+local function round(obj, radius)
     make("UICorner", {
         CornerRadius = UDim.new(0, radius or 8)
     }, obj)
 end
 
-local function stroke(obj, color, thickness, transparency)
+local function outline(obj, color, thickness)
     return make("UIStroke", {
-        Color = color or Color3.fromRGB(70, 70, 78),
+        Color = color or Color3.fromRGB(55, 55, 65),
         Thickness = thickness or 1,
-        Transparency = transparency or 0
     }, obj)
 end
 
-local function label(parent, text, size, position, fontSize, color)
+local function text(parent, value, size, pos, fontSize, color)
     return make("TextLabel", {
         BackgroundTransparency = 1,
-        Position = position,
         Size = size,
-        Text = text,
+        Position = pos,
+        Text = value,
         TextColor3 = color or Color3.fromRGB(240, 240, 245),
         Font = Enum.Font.GothamMedium,
-        TextSize = fontSize or 13,
+        TextSize = fontSize or 12,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
     }, parent)
@@ -68,8 +68,26 @@ local gui = make("ScreenGui", {
     Name = "BlackoutHub",
     ResetOnSpawn = false,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-}, PlayerGui)
+}, playerGui)
 
+-- Floating circular logo
+local logo = make("ImageButton", {
+    Name = "FloatingLogo",
+    Size = UDim2.fromOffset(44, 44),
+    Position = UDim2.new(0, 14, 0.5, -22),
+    BackgroundTransparency = 1,
+    Image = "rbxassetid://96019926640194",
+    ScaleType = Enum.ScaleType.Crop,
+    AutoButtonColor = true,
+    Visible = false,
+    ZIndex = 20,
+}, gui)
+
+make("UICorner", {
+    CornerRadius = UDim.new(1, 0)
+}, logo)
+
+-- Main window
 local main = make("Frame", {
     Name = "Main",
     Size = UDim2.fromOffset(480, 320),
@@ -79,16 +97,29 @@ local main = make("Frame", {
     BorderSizePixel = 0,
     ClipsDescendants = false,
 }, gui)
-corner(main, 12)
-stroke(main, Color3.fromRGB(65, 65, 76), 1)
--- Responsive sizing for phones
+
+round(main, 12)
+outline(main, Color3.fromRGB(65, 65, 76), 1)
+
+-- Background image
+local bg = make("ImageLabel", {
+    Name = "MenuBackground",
+    Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1,
+    Image = "rbxassetid://112525965968613",
+    ImageTransparency = 0.30,
+    ScaleType = Enum.ScaleType.Crop,
+    ZIndex = 0,
+}, main)
+
+round(bg, 12)
+
 local function updateLayout()
     local camera = workspace.CurrentCamera
     if not camera then return end
+    local v = camera.ViewportSize
 
-    local viewport = camera.ViewportSize
-
-    if viewport.X < 600 then
+    if v.X < 600 then
         main.Size = UDim2.new(0.92, 0, 0, 320)
         main.Position = UDim2.new(0.04, 0, 0.5, -160)
     else
@@ -100,42 +131,50 @@ end
 updateLayout()
 
 local top = make("Frame", {
-    Size = UDim2.new(1, 0, 0, 48),
-    BackgroundColor3 = Color3.fromRGB(20, 20, 24),
+    Name = "Header",
+    Size = UDim2.new(1, 0, 0, 43),
+    BackgroundColor3 = Color3.fromRGB(18, 18, 23),
+    BackgroundTransparency = 0.10,
     BorderSizePixel = 0,
+    ZIndex = 2,
 }, main)
-corner(top, 12)
 
--- Cover the bottom corners of the header
+round(top, 12)
+
 make("Frame", {
     Position = UDim2.new(0, 0, 1, -10),
     Size = UDim2.new(1, 0, 0, 10),
     BackgroundColor3 = top.BackgroundColor3,
+    BackgroundTransparency = top.BackgroundTransparency,
     BorderSizePixel = 0,
+    ZIndex = 2,
 }, top)
 
-label(top, "BLACKOUT", UDim2.new(0, 180, 1, 0),
-    UDim2.fromOffset(16, 0), 17, Color3.fromRGB(255, 255, 255))
+text(top, "BLACKOUT", UDim2.new(0, 115, 1, 0),
+    UDim2.fromOffset(13, 0), 16)
 
-label(top, "H U B   /   MOBILE", UDim2.new(0, 160, 1, 0),
-    UDim2.fromOffset(125, 0), 9, Color3.fromRGB(145, 145, 160))
+text(top, "H U B  /  MOBILE", UDim2.new(0, 145, 1, 0),
+    UDim2.fromOffset(112, 0), 9, Color3.fromRGB(150, 150, 165))
 
 local close = make("TextButton", {
-    Size = UDim2.fromOffset(32, 32),
-    Position = UDim2.new(1, -42, 0, 8),
-    BackgroundColor3 = Color3.fromRGB(40, 40, 47),
+    Size = UDim2.fromOffset(29, 29),
+    Position = UDim2.new(1, -36, 0, 7),
+    BackgroundColor3 = Color3.fromRGB(48, 35, 43),
     Text = "×",
-    TextSize = 23,
     TextColor3 = Color3.new(1, 1, 1),
+    TextSize = 21,
     Font = Enum.Font.Gotham,
-    AutoButtonColor = true,
+    BorderSizePixel = 0,
+    ZIndex = 3,
 }, top)
-corner(close, 8)
+
+round(close, 7)
+
 close.Activated:Connect(function()
     gui:Destroy()
 end)
 
--- Drag window using the header
+-- Drag window
 do
     local dragging = false
     local dragStart, startPos
@@ -153,10 +192,10 @@ do
         if not dragging then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch then
-            local delta = input.Position - dragStart
+            local d = input.Position - dragStart
             main.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                startPos.X.Scale, startPos.X.Offset + d.X,
+                startPos.Y.Scale, startPos.Y.Offset + d.Y
             )
         end
     end)
@@ -170,35 +209,39 @@ do
 end
 
 local sidebar = make("Frame", {
-    Position = UDim2.fromOffset(10, 58),
-    Size = UDim2.new(0, 145, 1, -68),
-    BackgroundColor3 = Color3.fromRGB(18, 18, 22),
+    Name = "Sidebar",
+    Position = UDim2.fromOffset(9, 51),
+    Size = UDim2.new(0, 132, 1, -60),
+    BackgroundColor3 = Color3.fromRGB(17, 17, 21),
+    BackgroundTransparency = 0.12,
     BorderSizePixel = 0,
+    ZIndex = 2,
 }, main)
-corner(sidebar, 8)
 
-label(sidebar, "NAVIGATION", UDim2.new(1, -20, 0, 25),
-    UDim2.fromOffset(12, 5), 9, Color3.fromRGB(115, 115, 130))
+round(sidebar, 8)
+
+text(sidebar, "NAVIGATION", UDim2.new(1, -16, 0, 24),
+    UDim2.fromOffset(10, 3), 9, Color3.fromRGB(145, 145, 160))
 
 local content = make("ScrollingFrame", {
-    Position = UDim2.new(0, 165, 0, 58),
-    Size = UDim2.new(1, -175, 1, -68),
+    Name = "Content",
+    Position = UDim2.new(0, 150, 0, 51),
+    Size = UDim2.new(1, -159, 1, -60),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 3,
-    ScrollBarImageColor3 = Color3.fromRGB(100, 100, 115),
+    ScrollBarImageColor3 = Color3.fromRGB(115, 90, 255),
     CanvasSize = UDim2.new(),
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    ZIndex = 2,
 }, main)
 
 make("UIListLayout", {
-    Padding = UDim.new(0, 8),
+    Padding = UDim.new(0, 7),
     SortOrder = Enum.SortOrder.LayoutOrder,
 }, content)
 
 local navButtons = {}
-local tabRenderers = {}
-local refreshTab
 
 local function clearContent()
     for _, child in ipairs(content:GetChildren()) do
@@ -209,53 +252,63 @@ local function clearContent()
 end
 
 local function card(title, description)
-    local frame = make("Frame", {
-        Size = UDim2.new(1, -7, 0, description and 68 or 52),
-        BackgroundColor3 = Color3.fromRGB(25, 25, 30),
-        BorderSizePixel = 0,
-    }, content)
-    corner(frame, 8)
-    stroke(frame, Color3.fromRGB(43, 43, 51), 1)
+    local height = description and 61 or 48
 
-    label(frame, title, UDim2.new(1, -100, 0, 25),
-        UDim2.fromOffset(12, 7), 12)
+    local frame = make("Frame", {
+        Size = UDim2.new(1, -5, 0, height),
+        BackgroundColor3 = Color3.fromRGB(24, 24, 29),
+        BackgroundTransparency = 0.08,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+    }, content)
+
+    round(frame, 7)
+    outline(frame, Color3.fromRGB(44, 44, 52), 1)
+
+    text(frame, title, UDim2.new(1, -85, 0, 25),
+        UDim2.fromOffset(10, 4), 11)
 
     if description then
-        label(frame, description, UDim2.new(1, -20, 0, 24),
-            UDim2.fromOffset(12, 32), 9,
-            Color3.fromRGB(145, 145, 158))
+        text(frame, description, UDim2.new(1, -15, 0, 22),
+            UDim2.fromOffset(10, 29), 9,
+            Color3.fromRGB(150, 150, 163))
     end
 
     return frame
 end
 
-local function addToggle(title, description, getter, setter)
+local function toggle(title, description, getter, setter)
     local frame = card(title, description)
 
     local button = make("TextButton", {
-        Size = UDim2.fromOffset(48, 25),
-        Position = UDim2.new(1, -60, 0.5, -12),
+        Size = UDim2.fromOffset(42, 23),
+        Position = UDim2.new(1, -52, 0.5, -11),
         BackgroundColor3 = Color3.fromRGB(48, 48, 57),
         Text = "",
         BorderSizePixel = 0,
+        ZIndex = 3,
     }, frame)
-    corner(button, 13)
+
+    round(button, 12)
 
     local dot = make("Frame", {
-        Size = UDim2.fromOffset(19, 19),
+        Size = UDim2.fromOffset(17, 17),
         Position = UDim2.fromOffset(3, 3),
-        BackgroundColor3 = Color3.fromRGB(230, 230, 235),
+        BackgroundColor3 = Color3.fromRGB(240, 240, 245),
         BorderSizePixel = 0,
+        ZIndex = 4,
     }, button)
-    corner(dot, 10)
+
+    round(dot, 10)
 
     local function redraw()
         local enabled = getter()
         button.BackgroundColor3 = enabled
             and Color3.fromRGB(115, 85, 255)
             or Color3.fromRGB(48, 48, 57)
+
         dot.Position = enabled
-            and UDim2.new(1, -22, 0, 3)
+            and UDim2.new(1, -20, 0, 3)
             or UDim2.fromOffset(3, 3)
     end
 
@@ -267,68 +320,81 @@ local function addToggle(title, description, getter, setter)
     redraw()
 end
 
-local function addButton(title, description, callback)
+local function actionButton(title, description, caption, callback)
     local frame = card(title, description)
+
     local button = make("TextButton", {
-        Size = UDim2.fromOffset(65, 27),
-        Position = UDim2.new(1, -77, 0.5, -13),
-        BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-        Text = "EDIT",
+        Size = UDim2.fromOffset(59, 25),
+        Position = UDim2.new(1, -68, 0.5, -12),
+        BackgroundColor3 = Color3.fromRGB(51, 44, 76),
+        Text = caption or "EDIT",
         TextColor3 = Color3.new(1, 1, 1),
-        TextSize = 10,
+        TextSize = 9,
         Font = Enum.Font.GothamBold,
         BorderSizePixel = 0,
+        ZIndex = 3,
     }, frame)
-    corner(button, 6)
+
+    round(button, 6)
     button.Activated:Connect(callback)
 end
 
-local function addSlider(title, minimum, maximum, getter, setter)
+local function slider(title, minimum, maximum, getter, setter)
     local frame = card(title, nil)
-    frame.Size = UDim2.new(1, -7, 0, 65)
+    frame.Size = UDim2.new(1, -5, 0, 60)
 
-    local valueLabel = label(frame, "", UDim2.fromOffset(65, 25),
-        UDim2.new(1, -78, 0, 3), 11,
-        Color3.fromRGB(175, 160, 255))
+    local valueLabel = text(frame, "", UDim2.fromOffset(48, 22),
+        UDim2.new(1, -58, 0, 1), 10,
+        Color3.fromRGB(180, 160, 255))
+
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
 
     local bar = make("Frame", {
-        Position = UDim2.new(0, 12, 0, 39),
-        Size = UDim2.new(1, -24, 0, 5),
-        BackgroundColor3 = Color3.fromRGB(53, 53, 63),
+        Position = UDim2.new(0, 10, 0, 37),
+        Size = UDim2.new(1, -20, 0, 5),
+        BackgroundColor3 = Color3.fromRGB(54, 54, 64),
         BorderSizePixel = 0,
+        ZIndex = 3,
     }, frame)
-    corner(bar, 4)
+
+    round(bar, 4)
 
     local fill = make("Frame", {
         Size = UDim2.new(0, 0, 1, 0),
         BackgroundColor3 = Color3.fromRGB(125, 95, 255),
         BorderSizePixel = 0,
+        ZIndex = 4,
     }, bar)
-    corner(fill, 4)
+
+    round(fill, 4)
 
     local knob = make("TextButton", {
-        Size = UDim2.fromOffset(17, 17),
-        Position = UDim2.new(0, -8, 0.5, -8),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        Size = UDim2.fromOffset(15, 15),
+        Position = UDim2.new(0, -7, 0.5, -7),
+        BackgroundColor3 = Color3.new(1, 1, 1),
         Text = "",
         BorderSizePixel = 0,
+        ZIndex = 5,
     }, bar)
-    corner(knob, 10)
+
+    round(knob, 10)
 
     local dragging = false
 
     local function redraw()
         local value = math.clamp(getter(), minimum, maximum)
         local ratio = (value - minimum) / (maximum - minimum)
+
         fill.Size = UDim2.new(ratio, 0, 1, 0)
-        knob.Position = UDim2.new(ratio, -8, 0.5, -8)
+        knob.Position = UDim2.new(ratio, -7, 0.5, -7)
         valueLabel.Text = tostring(math.floor(value + 0.5))
     end
 
-    local function setFromX(x)
+    local function setX(x)
+        local width = math.max(bar.AbsoluteSize.X, 1)
         local ratio = math.clamp(
-            (x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+            (x - bar.AbsolutePosition.X) / width, 0, 1)
+
         setter(minimum + ratio * (maximum - minimum))
         redraw()
     end
@@ -337,7 +403,7 @@ local function addSlider(title, minimum, maximum, getter, setter)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            setFromX(input.Position.X)
+            setX(input.Position.X)
         end
     end)
 
@@ -345,7 +411,7 @@ local function addSlider(title, minimum, maximum, getter, setter)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            setFromX(input.Position.X)
+            setX(input.Position.X)
         end
     end)
 
@@ -354,7 +420,7 @@ local function addSlider(title, minimum, maximum, getter, setter)
             input.UserInputType == Enum.UserInputType.MouseMovement
             or input.UserInputType == Enum.UserInputType.Touch
         ) then
-            setFromX(input.Position.X)
+            setX(input.Position.X)
         end
     end)
 
@@ -368,58 +434,61 @@ local function addSlider(title, minimum, maximum, getter, setter)
     redraw()
 end
 
--- Color editor popup
-local function openColorEditor(title, currentColor, onApply)
+-- Color picker with HEX input and palette
+local function colorPicker(title, initial, callback)
     local popup = make("Frame", {
-        Size = UDim2.new(0.85, 0, 0, 195),
-        Position = UDim2.new(0.075, 0, 0.5, -97),
-        BackgroundColor3 = Color3.fromRGB(22, 22, 28),
+        Size = UDim2.new(0.84, 0, 0, 190),
+        Position = UDim2.new(0.08, 0, 0.5, -95),
+        BackgroundColor3 = Color3.fromRGB(20, 20, 26),
         BorderSizePixel = 0,
-        ZIndex = 20,
+        ZIndex = 10,
     }, main)
-    corner(popup, 10)
-    stroke(popup, Color3.fromRGB(115, 90, 255), 1)
 
-    label(popup, title, UDim2.new(1, -45, 0, 30),
-        UDim2.fromOffset(12, 5), 13)
+    round(popup, 9)
+    outline(popup, Color3.fromRGB(115, 90, 255), 1)
+
+    text(popup, title, UDim2.new(1, -42, 0, 27),
+        UDim2.fromOffset(10, 3), 12).ZIndex = 11
 
     local closePopup = make("TextButton", {
-        Size = UDim2.fromOffset(28, 28),
-        Position = UDim2.new(1, -34, 0, 4),
-        BackgroundColor3 = Color3.fromRGB(45, 45, 53),
+        Size = UDim2.fromOffset(25, 25),
+        Position = UDim2.new(1, -29, 0, 4),
+        BackgroundColor3 = Color3.fromRGB(47, 47, 55),
         Text = "×",
         TextColor3 = Color3.new(1, 1, 1),
-        TextSize = 18,
-        ZIndex = 21,
+        TextSize = 17,
+        ZIndex = 12,
     }, popup)
-    corner(closePopup, 6)
+
+    round(closePopup, 5)
     closePopup.Activated:Connect(function()
         popup:Destroy()
     end)
 
     local hex = make("TextBox", {
-        Position = UDim2.fromOffset(12, 43),
-        Size = UDim2.new(1, -24, 0, 35),
-        BackgroundColor3 = Color3.fromRGB(12, 12, 16),
-        Text = "#" .. currentColor:ToHex(),
+        Position = UDim2.fromOffset(10, 35),
+        Size = UDim2.new(1, -20, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(11, 11, 15),
+        Text = "#" .. initial:ToHex(),
         PlaceholderText = "#7855FF",
         TextColor3 = Color3.new(1, 1, 1),
-        PlaceholderColor3 = Color3.fromRGB(120, 120, 130),
         Font = Enum.Font.Code,
-        TextSize = 14,
+        TextSize = 13,
         ClearTextOnFocus = false,
-        ZIndex = 21,
+        ZIndex = 11,
     }, popup)
-    corner(hex, 6)
+
+    round(hex, 5)
 
     local preview = make("Frame", {
-        Position = UDim2.fromOffset(12, 86),
-        Size = UDim2.new(1, -24, 0, 24),
-        BackgroundColor3 = currentColor,
+        Position = UDim2.fromOffset(10, 72),
+        Size = UDim2.new(1, -20, 0, 20),
+        BackgroundColor3 = initial,
         BorderSizePixel = 0,
-        ZIndex = 21,
+        ZIndex = 11,
     }, popup)
-    corner(preview, 6)
+
+    round(preview, 4)
 
     local palette = {
         Color3.fromRGB(255, 255, 255),
@@ -434,14 +503,16 @@ local function openColorEditor(title, currentColor, onApply)
 
     for i, color in ipairs(palette) do
         local swatch = make("TextButton", {
-            Position = UDim2.fromOffset(12 + (i - 1) * 35, 119),
-            Size = UDim2.fromOffset(27, 24),
+            Position = UDim2.fromOffset(10 + (i - 1) * 34, 101),
+            Size = UDim2.fromOffset(26, 23),
             BackgroundColor3 = color,
             Text = "",
             BorderSizePixel = 0,
-            ZIndex = 21,
+            ZIndex = 11,
         }, popup)
-        corner(swatch, 5)
+
+        round(swatch, 4)
+
         swatch.Activated:Connect(function()
             hex.Text = "#" .. color:ToHex()
             preview.BackgroundColor3 = color
@@ -451,99 +522,116 @@ local function openColorEditor(title, currentColor, onApply)
     hex:GetPropertyChangedSignal("Text"):Connect(function()
         local raw = hex.Text:gsub("#", "")
         if #raw == 6 and raw:match("^%x%x%x%x%x%x$") then
-            local ok, color = pcall(Color3.fromHex, raw)
+            local ok, color = pcall(function()
+                return Color3.fromHex(raw)
+            end)
             if ok then preview.BackgroundColor3 = color end
         end
     end)
 
     local apply = make("TextButton", {
-        Position = UDim2.new(0, 12, 1, -38),
-        Size = UDim2.new(1, -24, 0, 28),
+        Position = UDim2.new(0, 10, 1, -32),
+        Size = UDim2.new(1, -20, 0, 24),
         BackgroundColor3 = Color3.fromRGB(112, 82, 255),
         Text = "APPLY COLOR",
         TextColor3 = Color3.new(1, 1, 1),
         Font = Enum.Font.GothamBold,
-        TextSize = 11,
-        ZIndex = 21,
+        TextSize = 10,
+        ZIndex = 11,
     }, popup)
-    corner(apply, 6)
+
+    round(apply, 5)
 
     apply.Activated:Connect(function()
         local raw = hex.Text:gsub("#", "")
         if #raw == 6 and raw:match("^%x%x%x%x%x%x$") then
-            local ok, color = pcall(Color3.fromHex, raw)
+            local ok, color = pcall(function()
+                return Color3.fromHex(raw)
+            end)
+
             if ok then
-                onApply(color)
+                callback(color)
                 popup:Destroy()
             end
-        else
-            hex.Text = "Invalid HEX!"
         end
     end)
 end
 
-local function getCharacter(player)
-    local char = player.Character
+local function getCharacter(plr)
+    local char = plr.Character
     if not char then return nil end
+
     local root = char:FindFirstChild("HumanoidRootPart")
     local humanoid = char:FindFirstChildOfClass("Humanoid")
+
     if not root or not humanoid or humanoid.Health <= 0 then
         return nil
     end
+
     return char, root, humanoid
 end
 
-local function removeHighlight(player)
-    local item = highlights[player]
-    if item then
-        item:Destroy()
-        highlights[player] = nil
+local function removeFrom(store, plr)
+    local h = store[plr]
+    if h then
+        h:Destroy()
+        store[plr] = nil
     end
 end
 
-local function updateESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local char = player.Character
-            local _, _, humanoid = getCharacter(player)
+local function getHighlight(store, plr, char, name)
+    local h = store[plr]
 
-            if Settings.ESP and char and humanoid then
-                local h = highlights[player]
-                if not h or h.Parent ~= char then
-                    removeHighlight(player)
-                    h = Instance.new("Highlight")
-                    h.Name = "BlackoutESP"
-                    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    h.Parent = char
-                    highlights[player] = h
-                end
+    if not h or h.Parent ~= char then
+        removeFrom(store, plr)
+
+        h = Instance.new("Highlight")
+        h.Name = name
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        h.Parent = char
+        store[plr] = h
+    end
+
+    return h
+end
+
+local function updateESP()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local char, _, humanoid = getCharacter(plr)
+
+            if S.ESP and char and humanoid then
+                local h = getHighlight(
+                    espHighlights, plr, char, "BlackoutESP")
 
                 h.Enabled = true
-                h.FillColor = Settings.ESPFill
-                h.OutlineColor = Settings.ESPOutline
+                h.FillColor = S.FillColor
+                h.OutlineColor = S.OutlineColor
                 h.FillTransparency = 0.35
                 h.OutlineTransparency = 0
             else
-                removeHighlight(player)
+                removeFrom(espHighlights, plr)
             end
         end
     end
 end
 
 local function nearestTarget()
-    local _, myRoot = getCharacter(LocalPlayer)
+    local _, myRoot = getCharacter(player)
     if not myRoot then return nil end
 
-    local best, bestDistance = nil, math.huge
+    local best, bestDistance
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local char, root = getCharacter(player)
-            if char and root then
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local _, root = getCharacter(plr)
+
+            if root then
                 local distance = (root.Position - myRoot.Position).Magnitude
-                if distance < bestDistance then
+
+                if not bestDistance or distance < bestDistance then
+                    best = plr
                     bestDistance = distance
-                    best = player
                 end
             end
         end
@@ -556,42 +644,37 @@ local function updateAim()
     local target = nearestTarget()
     currentTarget = target
 
-    if target and target.Character then
-        local char = target.Character
-        local h = highlights[target]
-
-        -- Target highlight is separate from the ESP colors.
-        if Settings.Aim then
-            if not h or h.Parent ~= char then
-                removeHighlight(target)
-                h = Instance.new("Highlight")
-                h.Name = "BlackoutAimTarget"
-                h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                h.Parent = char
-                highlights[target] = h
-            end
-
-            h.FillColor = Settings.AimColor
-            h.OutlineColor = Settings.AimColor
-            h.FillTransparency = 0.35
-            h.OutlineTransparency = 0
+    for plr in pairs(aimHighlights) do
+        if plr ~= target or not S.Aim then
+            removeFrom(aimHighlights, plr)
         end
+    end
 
-        -- Aim camera toward the nearest target.
-        local head = char:FindFirstChild("Head")
-        local camera = workspace.CurrentCamera
+    if not target then return end
 
-        if head and camera then
-            local desired = CFrame.lookAt(
-                camera.CFrame.Position, head.Position)
-            camera.CFrame = camera.CFrame:Lerp(
-                desired, Settings.AimSmoothness)
-        end
+    local char = target.Character
+    if not char then return end
+
+    local h = getHighlight(
+        aimHighlights, target, char, "BlackoutAimTarget")
+
+    h.FillColor = S.AimColor
+    h.OutlineColor = S.AimColor
+    h.FillTransparency = 0.35
+    h.OutlineTransparency = 0
+
+    local head = char:FindFirstChild("Head")
+    local camera = workspace.CurrentCamera
+
+    if head and camera then
+        local desired = CFrame.lookAt(camera.CFrame.Position, head.Position)
+        camera.CFrame = camera.CFrame:Lerp(
+            desired, math.clamp(S.Smoothness / 100, 0.01, 1))
     end
 end
 
 local function renderTab(tab)
-    selectedTab = tab
+    currentTab = tab
     clearContent()
 
     for name, button in pairs(navButtons) do
@@ -600,69 +683,99 @@ local function renderTab(tab)
             or Color3.fromRGB(18, 18, 22)
     end
 
-    label(content, string.upper(tab), UDim2.new(1, -8, 0, 28),
-        UDim2.new(), 15, Color3.fromRGB(190, 175, 255)).LayoutOrder = 0
+    local heading = text(content, string.upper(tab),
+        UDim2.new(1, -5, 0, 25), UDim2.new(), 14,
+        Color3.fromRGB(190, 175, 255))
+
+    heading.LayoutOrder = 0
 
     if tab == "Combat" then
-        addToggle("Aim Assist", "Track the nearest player",
-            function() return Settings.Aim end,
-            function(v) Settings.Aim = v end)
-
-        addSlider("Aim Smoothness", 1, 40,
-            function() return Settings.AimSmoothness * 100 end,
-            function(v) Settings.AimSmoothness = v / 100 end)
-
-        addButton("Aim Target Color", "Choose target highlight color", function()
-            openColorEditor("AIM COLOR", Settings.AimColor, function(c)
-                Settings.AimColor = c
+        toggle("Aim Assist", "Track the nearest player",
+            function() return S.Aim end,
+            function(v)
+                S.Aim = v
+                if not v then
+                    for plr in pairs(aimHighlights) do
+                        removeFrom(aimHighlights, plr)
+                    end
+                end
             end)
-        end)
+
+        slider("Aim Smoothness", 1, 100,
+            function() return S.Smoothness end,
+            function(v) S.Smoothness = v end)
+
+        actionButton("Aim Color", "Target highlight color", "EDIT",
+            function()
+                colorPicker("AIM COLOR", S.AimColor, function(c)
+                    S.AimColor = c
+                end)
+            end)
 
     elseif tab == "Visuals" then
-        addToggle("Player ESP", "Outline other players",
-            function() return Settings.ESP end,
-            function(v) Settings.ESP = v end)
+        toggle("Player ESP", "White outline and red fill",
+            function() return S.ESP end,
+            function(v)
+                S.ESP = v
+                if not v then
+                    for plr in pairs(espHighlights) do
+                        removeFrom(espHighlights, plr)
+                    end
+                end
+            end)
 
-        addButton("Fill Color", "Default: red", function()
-            openColorEditor("ESP FILL", Settings.ESPFill, function(c)
-                Settings.ESPFill = c
+        actionButton("Fill Color", "Default: red", "EDIT", function()
+            colorPicker("ESP FILL", S.FillColor, function(c)
+                S.FillColor = c
             end)
         end)
 
-        addButton("Outline Color", "Default: white", function()
-            openColorEditor("ESP OUTLINE", Settings.ESPOutline, function(c)
-                Settings.ESPOutline = c
+        actionButton("Outline Color", "Default: white", "EDIT", function()
+            colorPicker("ESP OUTLINE", S.OutlineColor, function(c)
+                S.OutlineColor = c
             end)
         end)
 
     elseif tab == "Movement" then
-        addToggle("CFrame SpeedHack", "Move faster in your own experience",
-            function() return Settings.CFrameSpeed end,
-            function(v) Settings.CFrameSpeed = v end)
+        toggle("CFrame SpeedHack", "Accelerated local movement",
+            function() return S.Speed end,
+            function(v) S.Speed = v end)
 
-        addSlider("CFrame Speed", 10, 100,
-            function() return Settings.Speed end,
-            function(v) Settings.Speed = v end)
+        slider("CFrame Speed", 10, 100,
+            function() return S.SpeedValue end,
+            function(v) S.SpeedValue = v end)
 
     elseif tab == "Settings" then
-        addButton("Reset Colors", "Restore default colors", function()
-            Settings.AimColor = Color3.fromRGB(110, 80, 255)
-            Settings.ESPFill = Color3.fromRGB(255, 45, 55)
-            Settings.ESPOutline = Color3.fromRGB(255, 255, 255)
-            renderTab("Settings")
-        end)
+        actionButton("Hide Menu", "Leave the floating logo visible", "HIDE",
+            function()
+                main.Visible = false
+                logo.Visible = true
+            end)
 
-        addButton("Hide / Show", "Toggle panel visibility", function()
-            sidebar.Visible = not sidebar.Visible
-            content.Visible = not content.Visible
-        end)
+        actionButton("Reset Colors", "Restore default palette", "RESET",
+            function()
+                S.AimColor = Color3.fromRGB(110, 80, 255)
+                S.FillColor = Color3.fromRGB(255, 45, 55)
+                S.OutlineColor = Color3.fromRGB(255, 255, 255)
+                renderTab("Settings")
+            end)
 
-        addButton("Stop All", "Disable active features", function()
-            Settings.Aim = false
-            Settings.ESP = false
-            Settings.CFrameSpeed = false
-            renderTab("Settings")
-        end)
+        actionButton("Stop All", "Disable active features", "STOP",
+            function()
+                S.Aim = false
+                S.ESP = false
+                S.Speed = false
+
+                for plr in pairs(aimHighlights) do
+                    removeFrom(aimHighlights, plr)
+                end
+
+                for plr in pairs(espHighlights) do
+                    removeFrom(espHighlights, plr)
+                end
+
+                renderTab("Settings")
+            end)
     end
 end
 
@@ -670,16 +783,18 @@ local tabs = {"Combat", "Visuals", "Movement", "Settings"}
 
 for i, tab in ipairs(tabs) do
     local button = make("TextButton", {
-        Position = UDim2.fromOffset(6, 34 + (i - 1) * 43),
-        Size = UDim2.new(1, -12, 0, 37),
+        Position = UDim2.fromOffset(6, 31 + (i - 1) * 40),
+        Size = UDim2.new(1, -12, 0, 34),
         BackgroundColor3 = Color3.fromRGB(18, 18, 22),
         Text = tab,
         TextColor3 = Color3.fromRGB(235, 235, 242),
-        TextSize = 12,
+        TextSize = 11,
         Font = Enum.Font.GothamMedium,
         BorderSizePixel = 0,
+        ZIndex = 3,
     }, sidebar)
-    corner(button, 7)
+
+    round(button, 6)
     navButtons[tab] = button
 
     button.Activated:Connect(function()
@@ -687,40 +802,49 @@ for i, tab in ipairs(tabs) do
     end)
 end
 
--- Runtime features
+-- Reopen menu by tapping the circular logo
+logo.Activated:Connect(function()
+    main.Visible = true
+    logo.Visible = false
+end)
+
+-- Runtime loop
 local espTimer = 0
 
 RunService.RenderStepped:Connect(function(dt)
     if not gui.Parent then return end
 
     espTimer += dt
+
     if espTimer >= 0.2 then
         espTimer = 0
         updateESP()
     end
 
-    if Settings.Aim then
+    if S.Aim then
         updateAim()
     end
 
-    if Settings.CFrameSpeed then
-        local _, root, humanoid = getCharacter(LocalPlayer)
-        if root and humanoid and humanoid.MoveDirection.Magnitude > 0 then
-            local direction = humanoid.MoveDirection
-            local movement = direction * Settings.Speed * dt
+    if S.Speed then
+        local _, root, humanoid = getCharacter(player)
 
-            -- Apply only horizontal movement.
-            root.CFrame = root.CFrame + Vector3.new(
-                movement.X, 0, movement.Z)
+        if root and humanoid then
+            local direction = humanoid.MoveDirection
+
+            if direction.Magnitude > 0 then
+                local move = direction * S.SpeedValue * dt
+
+                root.CFrame = root.CFrame + Vector3.new(
+                    move.X, 0, move.Z)
+            end
         end
     end
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-    removeHighlight(player)
+Players.PlayerRemoving:Connect(function(plr)
+    removeFrom(espHighlights, plr)
+    removeFrom(aimHighlights, plr)
 end)
 
 renderTab("Combat")
-print("Blackout Hub loaded successfully")
-
-          
+print("Blackout Hub loaded")
