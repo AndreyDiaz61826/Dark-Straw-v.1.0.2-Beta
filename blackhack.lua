@@ -72,28 +72,31 @@ local gui = make("ScreenGui", {
 
 local main = make("Frame", {
     Name = "Main",
-    Size = UDim2.fromOffset(530, 350),
-    Position = UDim2.new(0.5, -265, 0.5, -175),
+    Size = UDim2.fromOffset(480, 320),
+    Position = UDim2.new(0.5, -240, 0.5, -160),
     BackgroundColor3 = Color3.fromRGB(13, 13, 16),
+    BackgroundTransparency = 0.18,
     BorderSizePixel = 0,
+    ClipsDescendants = false,
 }, gui)
 corner(main, 12)
 stroke(main, Color3.fromRGB(65, 65, 76), 1)
-
 -- Responsive sizing for phones
 local function updateLayout()
     local camera = workspace.CurrentCamera
     if not camera then return end
+
     local viewport = camera.ViewportSize
 
     if viewport.X < 600 then
-        main.Size = UDim2.new(0.94, 0, 0, 350)
-        main.Position = UDim2.new(0.03, 0, 0.5, -175)
+        main.Size = UDim2.new(0.92, 0, 0, 320)
+        main.Position = UDim2.new(0.04, 0, 0.5, -160)
     else
-        main.Size = UDim2.fromOffset(530, 350)
-        main.Position = UDim2.new(0.5, -265, 0.5, -175)
+        main.Size = UDim2.fromOffset(480, 320)
+        main.Position = UDim2.new(0.5, -240, 0.5, -160)
     end
 end
+
 updateLayout()
 
 local top = make("Frame", {
