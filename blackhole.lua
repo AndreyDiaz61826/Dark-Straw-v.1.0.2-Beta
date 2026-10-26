@@ -655,4 +655,69 @@ local function renderTab(tab)
         end)
 
         addButton("Stop All", "Disable active features", function()
+            Settings.Aim = false
+            Settings.ESP = false
+            Settings.CFrameSpeed = false
+            renderTab("Settings")
+        end)
+    end
+end
+
+local tabs = {"Combat", "Visuals", "Movement", "Settings"}
+
+for i, tab in ipairs(tabs) do
+    local button = make("TextButton", {
+        Position = UDim2.fromOffset(6, 34 + (i - 1) * 43),
+        Size = UDim2.new(1, -12, 0, 37),
+        BackgroundColor3 = Color3.fromRGB(18, 18, 22),
+        Text = tab,
+        TextColor3 = Color3.fromRGB(235, 235, 242),
+        TextSize = 12,
+        Font = Enum.Font.GothamMedium,
+        BorderSizePixel = 0,
+    }, sidebar)
+    corner(button, 7)
+    navButtons[tab] = button
+
+    button.Activated:Connect(function()
+        renderTab(tab)
+    end)
+end
+
+-- Runtime features
+local espTimer = 0
+
+RunService.RenderStepped:Connect(function(dt)
+    if not gui.Parent then return end
+
+    espTimer += dt
+    if espTimer >= 0.2 then
+        espTimer = 0
+        updateESP()
+    end
+
+    if Settings.Aim then
+        updateAim()
+    end
+
+    if Settings.CFrameSpeed then
+        local _, root, humanoid = getCharacter(LocalPlayer)
+        if root and humanoid and humanoid.MoveDirection.Magnitude > 0 then
+            local direction = humanoid.MoveDirection
+            local movement = direction * Settings.Speed * dt
+
+            -- Apply only horizontal movement.
+            root.CFrame = root.CFrame + Vector3.new(
+                movement.X, 0, movement.Z)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeHighlight(player)
+end)
+
+renderTab("Combat")
+print("Blackout Hub loaded successfully")
+
           
